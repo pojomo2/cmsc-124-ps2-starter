@@ -1,6 +1,13 @@
 # Vector and Scalar Evaluation
 
-Replace this paragraph after your checks pass. Trace one input, including the
-missing value, through `clean_scores_vector()` and `clean_scores_scalar()`.
-Compare the two evaluation models, identify where recycling would change the
-answer, and explain which implementation you would keep in an R program.
+Let’s use sample_scores <- c(Ada = 8, Grace = NA, Linus = 12, Barbara = 4).
+
+Starting with clean_scores_vector(): I copy the input into out, and the names come along. Then is.na(out) flags the missing entries in a single sweep, giving c(FALSE, TRUE, FALSE, FALSE). Using that flag to write a 0 into out[missing] only changes Grace’s slot, so out becomes 8, 0, 12, 4. Flipping the flag with !missing leaves me with Ada, Linus, and Barbara. Doubling them gives 16, 24, 8, and pmin(..., 20) stretches the single 20 across all three, which caps Linus and leaves 16, 20, 8. Putting it together: Ada = 16, Grace = 0, Linus = 20, Barbara = 8. Grace stays at 0 because she was never part of the doubling step. In total that’s three vectorized operations, and the actual iteration happens down in R’s C internals.
+
+Now clean_scores_scalar(): here a loop walks i from 1 to 4 and deals with one element per pass, each of length one. When i = 1, out[[1]] is 8, is.na says no, and min(16, 20) returns 16. When i = 2, the value is NA, so it’s replaced by 0. When i = 3, doubling gives 24, and min(24, 20) brings it down to 20. When i = 4, it ends up as 8. Both functions produce identical results. Order matters inside the loop, though: is.na() must be tested first, since if (NA) raises an error in R, and min(2 * NA, 20) would give back NA instead of the 0 I want.
+
+What separates the two is where the logic sits. With vectors, I write each rule once and let logical subsetting pick the elements it applies to. With the loop, the rule runs on every element individually and control flow does the picking. Since R has no real scalars, out[[i]] is itself a length-one vector, so looping gains nothing and just adds interpreter overhead.
+
+Recycling can quietly alter results whenever a shorter vector gets lined up against a longer one. The lone 0 and 20 in this code are harmless because each has length one. Something like out[missing] <- c(0, 1) is a different story: it would recycle without any warning if the count of selected positions is even. Likewise, a logical index shorter than out gets recycled, so out[c(TRUE, FALSE)] would grab every second student and ignore which scores are NA. The loop version avoids this whole class of bug, because each operation only ever sees length-one objects.
+
+My pick is clean_scores_vector(). It’s more compact, quicker, written the way R is meant to be written, and the rule reads clearly. The recycling concern doesn’t apply, since each logical index is built from out. That said, I’d keep the scalar function around as a test oracle, because the two should always agree. Loops earn their place only when every iteration relies on the result of the one before.
