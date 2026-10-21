@@ -1,151 +1,101 @@
-# an    ysis.R -- the four functions Part 2 asks for.
-#
-# Each stub below carries what it receives, what it must return, the constraint
-# the grader enforces on it, and one worked call using the published sample. The
-# grader calls each function with this sample and with other inputs. A function
-# that reproduces the sample but breaks the rules fails on those other inputs.
-#
-# The published sample, used by every example here:
-#
-#   sample_scores <- c(Ada = 8, Grace = NA_real_, Linus = 12, Barbara = 4)
+# Reasoning Before Execution
 
-# clean_scores_vector(scores)
-#
-# scores:  a numeric vector, possibly carrying a `names` attribute, and possibly
-#          holding NA values.
-# returns: a double vector of the same length, carrying the same names, where
-#          every NA has become 0 and every other element is min(2 * score, 20).
-#
-# Vector expressions and subassignment only. No for, while, repeat, Map, lapply,
-# sapply, or vapply. The grader reads the calls in this function's body and fails
-# the run when it finds a call to one of those. A word in a string does not
-# count. The constraint is checked whether or not the numbers come out right.
-#
-#   clean_scores_vector(sample_scores)
-#   #     Ada   Grace   Linus Barbara
-#   #      16       0      20       8
-#
-# A logical vector the same length as `scores`, placed inside [ ] on the left of
-# <-, replaces exactly the elements it marks and leaves the names attached. That
-# is the subassignment the constraint is asking for.
-clean_scores_vector <- function(scores) {
-    adjusted <- ifelse(is.na(scores), 0, scores *2)
-    adjusted[adjusted > 20] <- 20
-    adjusted
+Write the rule behind each case before you commit your predictions. Replace
+every placeholder line below with one to three sentences that name the rule
+producing that case's value, type, length, and dimensions. One rule is enough.
+After you run and find a miss, add a short correction entry under that case in a
+later commit.
 
+## P01
 
-}
+**Implicit Coercion Hierarchy:** R follows the type hierarchy (`logical` → `integer` → `double` → `character`). Combining mixed types forces all elements to coerce to the highest type present (`double`). `TRUE` becomes `1.0` and `2L` becomes `2.0`, resulting in a `double` vector of length 3 with no dimensions (`dim = none`).
 
-# clean_scores_scalar(scores)
-#
-# scores:  the same input as clean_scores_vector().
-# returns: the same output as clean_scores_vector(), element for element,
-#          including the names.
-#
-# This one must use a `for` loop and handle one element per pass, and it must not
-# call clean_scores_vector(). The grader checks both. The loop gives you an
-# element-at-a-time strategy to compare with R's vectorized strategy in
-# ANALYSIS.md. R still represents each selected value as a length-one vector.
-#
-#   clean_scores_scalar(sample_scores)
-#   #     Ada   Grace   Linus Barbara
-#   #      16       0      20       8
-#
-# Copy `scores` into a local double vector that keeps the names:
-# out <- setNames(as.double(scores), names(scores)). A bare as.double() drops
-# the names. A plain copy of integer input stays integer when the loop never
-# writes to it. Write each result back with out[[i]] <- value, which keeps the
-# names attached. Accumulating into a fresh vector with out <- c(out, value)
-# drops them, and the check compares with identical(), which notices.
-clean_scores_scalar <- function(scores) {
-    out <- setNames(as.double(scores), names(scores))
+---
 
-    for (i in seq_along(scores)) {
-        if (is.na(scores[i])) {
-            out[i] <- 0
-        } else {
-            out[i] <- min(scores[i] * 2, 20)
-        }
-    }
-    out
-}
+## P02
 
-# build_roster(student_names, groups, scores)
-#
-# student_names: a character vector of names.
-# groups:        a character vector of group labels, the same length.
-# scores:        a numeric vector of raw scores, the same length, possibly named.
-# returns:       a data frame with five columns, in this order:
-#                  name            the names as character values
-#                  group           a factor whose levels follow first appearance
-#                                  in `groups`
-#                  raw_score       the scores with their names removed
-#                  adjusted_score  clean_scores_vector(scores), names removed
-#                  passed          TRUE when adjusted_score is at least 12
-#
-# Build it with stringsAsFactors = FALSE. The `group` column is an explicit
-# factor, so that setting only affects `name`, which has to stay character.
-#
-#   build_roster(c("Ada", "Grace", "Linus", "Barbara"),
-#                c("red", "blue", "red", "blue"),
-#                sample_scores)
-#   #      name group raw_score adjusted_score passed
-#   # 1     Ada   red         8             16   TRUE
-#   # 2   Grace  blue        NA              0  FALSE
-#   # 3   Linus   red        12             20   TRUE
-#   # 4 Barbara  blue         4              8  FALSE
-#
-# factor(groups) sorts its levels, which for "red" and "blue" gives the wrong
-# order. factor(groups, levels = unique(groups)) keeps first-appearance order.
-# unname() is what strips the names off the two score columns.
-build_roster <- function(student_names, groups, scores) {
-    adj <- unname(clean_scores_vector(scores))
+**Character Coercion Priority:** Under R's coercion rules, character storage has top priority, coercing all other values into strings. Combining `1L`, `"2"`, and `TRUE` produces `["1", "2", "TRUE"]`, resulting in a `character` vector of length 3 with no dimensions.
 
-    data.frame(
-        name           = unname(as.character(student_names)),
-        group          = factor(groups, levels         = unique(groups)),
-        raw_score      = unname(scores),
-        adjusted_score = adj,
-        passed         = adj >= 12,
-        stringsAsFactors = FALSE
-    )
-}
+---
 
-# summarize_roster(roster)
-#
-# roster:  a data frame built by build_roster().
-# returns: a list with these five items, in this order, with these types:
-#            rows           integer, the row count
-#            missing_raw    integer, how many raw_score values are NA
-#            mean_adjusted  double, the mean of adjusted_score
-#            passed         character, the names of students whose passed is TRUE
-#            mean_by_group  a named double vector with no dim attribute, one
-#                           mean of adjusted_score per level of the group
-#                           factor, named by that level, in level order
-#
-# The check compares with identical(), so the types are graded as strictly as
-# the numbers. nrow() and sum() over a logical already give integers, and mean()
-# gives a double. tapply() looks like the tool for mean_by_group and returns a
-# one-dimensional array, which carries a dim attribute and fails identical()
-# even when it prints the same two numbers.
-#
-#   summarize_roster(build_roster(...))    # the call above
-#   # List of 5
-#   #  $ rows         : int 4
-#   #  $ missing_raw  : int 1
-#   #  $ mean_adjusted: num 11
-#   #  $ passed       : chr [1:2] "Ada" "Linus"
-#   #  $ mean_by_group: Named num [1:2] 18 4
-#   #   ..- attr(*, "names")= chr [1:2] "red" "blue"
-#
-# split() can divide adjusted_score by every factor level. vapply() can then
-# compute one mean for each part and return a named vector with no dimensions.
-summarize_roster <- function(roster) {
-  list(
-    rows          = as.integer(nrow(roster)),
-    missing_raw   = as.integer(sum(is.na(roster$raw_score))),
-    mean_adjusted = as.double(mean(roster$adjusted_score)),
-    passed        = unname(as.character(roster$name[roster$passed])),
-    mean_by_group = sapply(split(roster$adjusted_score, roster$group), mean)
-  )
-}
+## P03
+
+**Vector Recycling & Integer Arithmetic:** The binary `+` operator operates element-wise, recycling the shorter vector to match length 4 (`10, 20, 10, 20`). Adding integer vectors preserves the `integer` type, yielding `[11, 22, 31, 42]` with length 4 and no dimensions.
+
+---
+
+## P04
+
+**1-Based Positive Indexing:** Indexing in R uses 1-based positioning, where `c(3L, 1L)` selects the 3rd element (`9L`) first and the 1st element (`8L`) second while preserving attached names. The output retains its `integer` type, has a length of 2, and carries no dimensions.
+
+---
+
+## P05
+
+**Negative Index Exclusion:** Subsetting with negative integers excludes elements at those 1-based positions. Specifying `-2L` drops the second element, leaving the remaining values as an `integer` vector of length 2 with no dimensions.
+
+---
+
+## P06
+
+**Logical Subsetting & NA Propagation:** Logical subsetting evaluates conditions position-by-position, where missing values in comparison expressions (like `NA > 10L`) evaluate to `NA` and get preserved in the result. Subsetting retains `NA` alongside valid `TRUE` matches as an `integer` vector of length 2 with no dimensions.
+
+---
+
+## P07
+
+**Factor Internal Storage:** `typeof()` returns `integer` because factors are physically stored as 1-based integer codes pointing to an explicit `levels` attribute. The factor contains 3 elements, so its length is 3 and it carries no dimensions.
+
+---
+
+## P08
+
+**Generic List Representation:** `typeof()` returns `list` because generic lists store heterogeneous components in separate top-level slots without coercing their data types. The list has a length of 2 (counting top-level components) and no dimensions.
+
+---
+
+## P09
+
+**Data Frame Implementation:** `typeof()` returns `list` because a data frame is physically implemented as a named list of equal-length column vectors. `length()` returns 2 (counting column vectors), while `dim()` returns `2x2` reflecting 2 rows and 2 columns.
+
+---
+
+## P10
+
+**Matrix Recycling & Column-Major Ordering:** A matrix is an atomic vector stored in column-major order with a 2D `dim` attribute. Arithmetic with `c(10L, 20L)` recycles values down columns, preserving the `integer` type and the `2x3` matrix dimensions.
+
+---
+
+## P11
+
+**Default NA Propagation in Summary Functions:** Because `na.rm` defaults to `FALSE`, any missing value (`NA_real_`) in the input vector causes `mean()` to return missingness. Because non-missing inputs are double-precision numbers, `mean()` returns a missing double (`NA_real_`), having type `double`, length 1, and no dimensions.
+
+---
+
+## P12
+
+**Explicit NA Removal:** Setting `na.rm = TRUE` instructs `mean()` to strip out missing values (`NA_real_`) before aggregation. Averaging the remaining double-precision values (`8` and `10`) yields `9.0`, which is a scalar of type `double`, length 1, and no dimensions.
+
+---
+
+## P13
+
+**Mixed-Mode Subassignment Coercion:** Assigning a `double` value (`2.5`) into an existing integer vector forces implicit whole-vector coercion to `double` to maintain atomic homogeneity. The resulting vector has type `double`, length 3, and no dimensions.
+
+---
+
+## P14
+
+**Vectorized Selection & Subassignment Capping:** `ifelse()` replaces missing values with `0` while doubling valid numeric scores, and logical subassignment (`adjusted[adjusted > 15] <- 15`) caps values exceeding 15 down to 15. The storage mode remains `double`, length is 4, and `dim` is `none`.
+
+---
+
+## P15
+
+**Multi-Dimensional Array Structure:** `array()` attaches a 3D `dim` vector (`c(2L, 2L, 2L)`) to an atomic sequence in column/slice-major order. The output has type `integer`, length 8, and dimensions `2x2x2`.
+
+---
+
+## P16
+
+**Zero Indexing Behavior:** Indexing a vector at position 0 (`0L`) selects no elements and returns an empty result (`integer(0)`). Subsetting preserves the underlying storage mode, returning a vector of type `integer`, length 0, and no dimensions.
